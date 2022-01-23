@@ -1,0 +1,3 @@
+2022-01-23 09:17:32,232 INFO :: This message just shows basic information
+2022-01-23 09:17:32,232 WARNING :: This message is about something you should pay attention to
+2022-01-23 09:17:32,233 ERROR :: This message helps to debug an error that occurred in your program

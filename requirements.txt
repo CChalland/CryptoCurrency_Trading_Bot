@@ -1,2 +1,3 @@
 pandas
 python-decouple
+websocket-client
