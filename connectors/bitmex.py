@@ -27,7 +27,7 @@ class BitmexClient:
 
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
-        
+
         t = threading.Thread(target=self._start_ws)
         t.start()
         logger.info("Bitmex Client successfully initialized")
@@ -66,7 +66,8 @@ class BitmexClient:
         if response.status_code == 200:
             return response.json()
         else:
-            logger.error("Error while making %s request to %s: %s (error code %s)", method, endpoint, response.json(), response.status_code)
+            logger.error("Error while making %s request to %s: %s (error code %s)",
+                            method, endpoint, response.json(), response.status_code)
             return None
 
     def get_contracts(self) -> typing.Dict[str, Contract]:
@@ -79,9 +80,9 @@ class BitmexClient:
         return contracts
 
     def get_balances(self) -> typing.Dict[str, Balance]:
+        balances = dict()
         data = dict()
         data['currency'] = "all"
-        balances = dict()
         margin_data = self._make_request("GET", "/api/v1/user/margin", data)
 
         if margin_data is not None:
@@ -96,21 +97,22 @@ class BitmexClient:
         data['partial'] = True
         data['binSize'] = timeframe
         data['count'] = 500
+        data['reverse'] = True
         raw_candles = self._make_request("GET", "/api/v1/trade/bucketed", data)
 
         if raw_candles is not None:
-            for c in raw_candles:
-                candles.append(Candle(c, "bitmex"))
+            for c in reversed(raw_candles):
+                candles.append(Candle(c, timeframe, "bitmex"))
         return candles
 
     def place_order(self, contract: Contract, order_type: str, quantity: int, side: str, price=None, tif=None) -> OrderStatus:
         data = dict()
         data['symbol'] = contract.symbol
         data['side'] = side.capitalize()
-        data['orderQty'] = quantity
+        data['orderQty'] = round(quantity / contract.lot_size) * contract.lot_size
         data['ordType'] = order_type.capitalize()
         if price is not None:
-            data['price'] = price
+            data['price'] = round(round(price / contract.tick_size) * contract.tick_size, 8)
         if tif is not None:
             data['timeInForce'] = tif
         order_status = self._make_request("POST", "/api/v1/order", data)
@@ -140,8 +142,8 @@ class BitmexClient:
                     return OrderStatus(order, "bitmex")
 
     def _start_ws(self):
-        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close, on_error=self._on_error, on_message=self._on_message)
-
+        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
+                                            on_error=self._on_error, on_message=self._on_message)
         while True:
             try:
                 self._ws.run_forever()

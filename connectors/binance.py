@@ -62,7 +62,8 @@ class BinanceFuturesClient:
         if response.status_code == 200:
             return response.json()
         else:
-            logger.error("Error while making %s request to %s: %s (error code %s)", method, endpoint, response.json(), response.status_code)
+            logger.error("Error while making %s request to %s: %s (error code %s)",
+                            method, endpoint, response.json(), response.status_code)
             return None
 
     def get_contracts(self) -> typing.Dict[str, Contract]:
@@ -84,7 +85,7 @@ class BinanceFuturesClient:
 
         if raw_candles is not None:
             for c in raw_candles:
-                candles.append(Candle(c, "binance"))
+                candles.append(Candle(c, interval, "binance"))
         return candles
 
     def get_bid_ask(self, contract: Contract) -> typing.Dict[str, float]:
@@ -116,10 +117,10 @@ class BinanceFuturesClient:
         data = dict()
         data['symbol'] = contract.symbol
         data['side'] = side
-        data['quantity'] = quantity
+        data['quantity'] = round(round(quantity / contract.lot_size) * contract.lot_size, 8)
         data['type'] = order_type
         if price is not None:
-            data['price'] = price
+            data['price'] = round(round(price / contract.tick_size) * contract.tick_size, 8)
         if tif is not None:
             data['timeInForce'] = tif
         data['timestamp'] = int(time.time() * 1000)
@@ -155,7 +156,8 @@ class BinanceFuturesClient:
         return order_status
 
     def _start_ws(self):
-        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close, on_error=self._on_error, on_message=self._on_message)
+        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
+                                            on_error=self._on_error, on_message=self._on_message)
         while True:
             try:
                 self._ws.run_forever()
