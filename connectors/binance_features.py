@@ -8,9 +8,9 @@ class BinanceFuturesClient:
         self.prices = dict()
         
         if testnet:
-            self.base_url - "https://testnet.binancefuture.com"
+            self.base_url = "https://testnet.binancefuture.com"
         else:
-            self.base_url - "https://fapi.binance.com"
+            self.base_url = "https://fapi.binance.com"
         
         logger.info("Binance Futures Client successfully initialized")
     
@@ -37,7 +37,7 @@ class BinanceFuturesClient:
         
     def get_historical_candles(self, symbol, interval):
         data = dict()
-        data['symbil'] = symbol
+        data['symbol'] = symbol
         data['interval'] = interval
         data['limit'] = 1000
         
@@ -52,7 +52,7 @@ class BinanceFuturesClient:
     def get_bid_ask(self, symbol):
         data = dict()
         data['symbol'] = symbol
-        ob_data = self.make_request("GET", "/fapi/v1/ticcker/bookTicker", data)
+        ob_data = self.make_request("GET", "/fapi/v1/ticker/bookTicker", data)
         
         if ob_data is not None:
             if symbol not in self.prices:
