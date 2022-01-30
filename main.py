@@ -1,10 +1,15 @@
+from decouple import config
 import tkinter as tk
 import logging
 from connectors.binance_features import BinanceFuturesClient
-
+# testnet.binancefuture.com API keys
+TEST_BINANCE_KEY = config('TEST_BINANCE_KEY')
+TEST_BINANCE_SECRET = config('TEST_BINANCE_SECRET')
+# testnet.bitmex.com API keys
+TEST_BITMAX_ID = config('TEST_BITMAX_ID')
+TEST_BITMAX_SECRET = config('TEST_BITMAX_SECRET')
 
 logger = logging.getLogger()
-
 logger.setLevel(logging.DEBUG)
 
 stream_handler = logging.StreamHandler()
@@ -21,10 +26,14 @@ logger.addHandler(file_handler)
 
 
 if __name__ == '__main__':
-    binance = BinanceFuturesClient(True)
-    print(binance.get_contracts())
-    print(binance.get_bid_ask("BTCUSDT"))
-    print(binance.get_historical_candles("BTCUSDT", "1h"))
-    
+    binance = BinanceFuturesClient(TEST_BINANCE_KEY, TEST_BINANCE_SECRET, True)
+    # # print(binance.get_contracts())
+    # # print(binance.get_bid_ask("BTCUSDT"))
+    # # print(binance.get_historical_candles("BTCUSDT", "1h"))
+    print(binance.get_balances())
+    # print(binance.place_order("BTCUSDT", "BUY", 0.01, "LIMIT", 20000, "GTC"))
+    # print(binance.get_order_status("BTCUSDT", 2712672670))
+    # print(binance.cancel_order("BTCUSDT", 2712672670))
+
     root = tk.Tk()
     root.mainloop()
