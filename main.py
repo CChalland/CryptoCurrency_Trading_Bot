@@ -1,7 +1,7 @@
 from decouple import config
 import tkinter as tk
 import logging
-from connectors.binance_features import BinanceFuturesClient
+from connectors.binance import BinanceFuturesClient
 # testnet.binancefuture.com API keys
 TEST_BINANCE_KEY = config('TEST_BINANCE_KEY')
 TEST_BINANCE_SECRET = config('TEST_BINANCE_SECRET')
