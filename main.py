@@ -3,6 +3,7 @@ import tkinter as tk
 import logging
 from connectors.binance import BinanceFuturesClient
 from connectors.bitmex import BitmexClient
+from interface.root_component import Root
 # testnet.binancefuture.com API keys
 TEST_BINANCE_KEY = config('TEST_BINANCE_KEY')
 TEST_BINANCE_SECRET = config('TEST_BINANCE_SECRET')
@@ -27,7 +28,7 @@ logger.addHandler(file_handler)
 
 
 if __name__ == '__main__':
-    # binance = BinanceFuturesClient(TEST_BINANCE_KEY, TEST_BINANCE_SECRET, True)
+    binance = BinanceFuturesClient(TEST_BINANCE_KEY, TEST_BINANCE_SECRET, True)
     # print(binance.get_contracts())
     # print(binance.get_bid_ask("BTCUSDT"))
     # print(binance.get_historical_candles("BTCUSDT", "1h"))
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     # print(binance.get_order_status("BTCUSDT", 2712672670))
     # print(binance.cancel_order("BTCUSDT", 2712672670))
     bitmex = BitmexClient(TEST_BITMAX_ID, TEST_BITMAX_SECRET, True)
-    print(bitmex.place_order(bitmex.contracts['XBTUSD'], "Limit", 120.4, "Buy", 20000.4939338, "GoodTillCancel"))
+    # print(bitmex.place_order(bitmex.contracts['XBTUSD'], "Limit", 120.4, "Buy", 20000.4939338, "GoodTillCancel"))
 
-    root = tk.Tk()
+    root = Root(binance, bitmex)
     root.mainloop()
