@@ -1,6 +1,6 @@
 import tkinter as tk
 import logging
-from bitmex import get_contracts
+from connectors.bitmex import get_contracts
 
 
 logger = logging.getLogger()
