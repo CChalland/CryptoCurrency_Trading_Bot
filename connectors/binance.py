@@ -15,12 +15,11 @@ logger = logging.getLogger()
 class BinanceFuturesClient:
     def __init__(self, public_key: str, secret_key: str, testnet: bool):
         self.prices = dict()
-        self._ws = None
         self._ws_id = 1
+        self._ws = None
         self._public_key = public_key
         self._secret_key = secret_key
         self._headers = {'X-MBX-APIKEY': self._public_key}
-        
         if testnet:
             self._base_url = "https://testnet.binancefuture.com"
             self._wss_url = "wss://stream.binancefuture.com/ws"
@@ -30,6 +29,7 @@ class BinanceFuturesClient:
 
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
+
         t = threading.Thread(target=self._start_ws)
         t.start()
         logger.info("Binance Futures Client successfully initialized")
@@ -71,20 +71,20 @@ class BinanceFuturesClient:
 
         if exchange_info is not None:
             for contract_data in exchange_info['symbols']:
-                contracts[contract_data['pair']] = Contract(contract_data)
+                contracts[contract_data['pair']] = Contract(contract_data, "binance")
         return contracts
 
     def get_historical_candles(self, contract: Contract, interval: str) -> typing.List[Candle]:
+        candles = []
         data = dict()
         data['symbol'] = contract.symbol
         data['interval'] = interval
         data['limit'] = 1000
-        candles = []
         raw_candles = self._make_request("GET", "/fapi/v1/klines", data)
 
         if raw_candles is not None:
             for c in raw_candles:
-                candles.append(Candle(c))
+                candles.append(Candle(c, "binance"))
         return candles
 
     def get_bid_ask(self, contract: Contract) -> typing.Dict[str, float]:
@@ -109,7 +109,7 @@ class BinanceFuturesClient:
 
         if account_data is not None:
             for a in account_data['assets']:
-                balances[a['asset']] = Balance(a)
+                balances[a['asset']] = Balance(a, "binance")
         return balances
 
     def place_order(self, contract: Contract, side: str, quantity: float, order_type: str, price=None, tif=None) -> OrderStatus:
@@ -127,7 +127,7 @@ class BinanceFuturesClient:
         order_status = self._make_request("POST", "/fapi/v1/order", data)
 
         if order_status is not None:
-            order_status = OrderStatus(order_status)
+            order_status = OrderStatus(order_status, "binance")
         return order_status
 
     def cancel_order(self, contract: Contract, order_id: int) -> OrderStatus:
@@ -139,7 +139,7 @@ class BinanceFuturesClient:
         order_status = self._make_request("DELETE", "/fapi/v1/order", data)
 
         if order_status is not None:
-            order_status = OrderStatus(order_status)
+            order_status = OrderStatus(order_status, "binance")
         return order_status
 
     def get_order_status(self, contract: Contract, order_id: int) -> OrderStatus:
@@ -151,14 +151,14 @@ class BinanceFuturesClient:
         order_status = self._make_request("GET", "/fapi/v1/order", data)
 
         if order_status is not None:
-            order_status = OrderStatus(order_status)
+            order_status = OrderStatus(order_status, "binance")
         return order_status
 
     def _start_ws(self):
-        self.ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close, on_error=self._on_error, on_message=self._on_message)
+        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close, on_error=self._on_error, on_message=self._on_message)
         while True:
             try:
-                self.ws.run_forever()
+                self._ws.run_forever()
             except Exception as e:
                 logger.error("Binance error in run_forever() method: %s", e)
             time.sleep(2)
@@ -195,7 +195,7 @@ class BinanceFuturesClient:
         data['id'] = self._ws_id
 
         try:
-            self.ws.send(json.dumps(data))
+            self._ws.send(json.dumps(data))
         except Exception as e:
             logger.error("Websocket error while subscribing to %s %s updates: %s", len(contracts), channel, e)
 

@@ -38,6 +38,7 @@ if __name__ == '__main__':
     bitmex = BitmexClient(TEST_BITMAX_ID, TEST_BITMAX_SECRET, True)
     print(bitmex.contracts['XBTUSD'].base_asset, bitmex.contracts['XBTUSD'].price_decimals)
     print(bitmex.balances['XBt'].wallet_balance)
+    print(bitmex.cancel_order("3a6d3004-615e-4aba-85a3-2c9932b2184a").status)
 
     root = tk.Tk()
     root.mainloop()
