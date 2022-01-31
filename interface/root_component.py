@@ -22,11 +22,10 @@ class Root(tk.Tk):
         self.bitmex = bitmex
 
         self.title("Trading Bot")
-
         self.configure(bg=BG_COLOR)
 
-        self._left_frame = tk.Frame(self, bg=BG_COLOR)
-        self._left_frame.pack(side=tk.LEFT)
-
-        self._right_frame = tk.Frame(self, bg=BG_COLOR)
-        self._right_frame.pack(side=tk.LEFT)
+        self.left_frame(tk.Frame(self, bg=BG_COLOR))
+        self.left_frame.pack(side=tk.LEFT)
+        
+        self.right_frame(tk.Frame(self, bg=BG_COLOR))
+        self.right_frame.pack(side=tk.LEFT)

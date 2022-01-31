@@ -29,15 +29,7 @@ logger.addHandler(file_handler)
 
 if __name__ == '__main__':
     binance = BinanceFuturesClient(TEST_BINANCE_KEY, TEST_BINANCE_SECRET, True)
-    # print(binance.get_contracts())
-    # print(binance.get_bid_ask("BTCUSDT"))
-    # print(binance.get_historical_candles("BTCUSDT", "1h"))
-    # print(binance.get_balances())
-    # print(binance.place_order("BTCUSDT", "BUY", 0.01, "LIMIT", 20000, "GTC"))
-    # print(binance.get_order_status("BTCUSDT", 2712672670))
-    # print(binance.cancel_order("BTCUSDT", 2712672670))
     bitmex = BitmexClient(TEST_BITMAX_ID, TEST_BITMAX_SECRET, True)
-    # print(bitmex.place_order(bitmex.contracts['XBTUSD'], "Limit", 120.4, "Buy", 20000.4939338, "GoodTillCancel"))
 
     root = Root(binance, bitmex)
     root.mainloop()
