@@ -7,7 +7,7 @@ from connectors.binance import BinanceFuturesClient
 
 from interface.styling import *
 from interface.logging_component import Logging
-# from interface.watchlist_component import Watchlist
+from interface.watchlist_component import Watchlist
 # from interface.trades_component import TradesWatch
 # from interface.strategy_component import StrategyEditor
 
@@ -28,6 +28,9 @@ class Root(tk.Tk):
         
         self._right_frame = tk.Frame(self, bg=BG_COLOR)
         self._right_frame.pack(side=tk.LEFT)
+        
+        self._watchlist_frame = Watchlist(self.binance.contracts, self.bitmex.contracts, self._left_frame, bg=BG_COLOR)
+        self._watchlist_frame.pack(side=tk.TOP)
         
         self._logging_frame = Logging(self._left_frame, bg=BG_COLOR)
         self._logging_frame.pack(side=tk.TOP)
