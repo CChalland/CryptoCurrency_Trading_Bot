@@ -98,9 +98,44 @@ class StrategyEditor(tk.Frame):
         self._body_index += 1
     
     def _delete_row(self, b_index: int):
-        return
+        for element in self._base_params:
+            self.body_widgets[element['code_name']][b_index].grid_forget()
+            del self.body_widgets[element['code_name']][b_index]
     
     def _show_popup(self, b_index: int):
+        x = self.body_widgets["parameters"][b_index].winfo_rootx()
+        y = self.body_widgets["parameters"][b_index].winfo_rooty()
+        self._popup_window = tk.Toplevel(self)
+        self._popup_window.wm_title("Parameters")
+        self._popup_window.config(bg=BG_COLOR)
+        self._popup_window.attributes("-topmost", "true")
+        self._popup_window.grab_set()
+        self._popup_window.geometry(f"+{x - 80}+{y + 30}")
+        strat_selected = self.body_widgets['strategy_type_var'][b_index].get()
+        row_nb = 0
+        
+        for param in self._extra_params[strat_selected]:
+            code_name = param['code_name']
+
+            temp_label = tk.Label(self._popup_window, bg=BG_COLOR, fg=FG_COLOR, text=param['name'], font=BOLD_FONT)
+            temp_label.grid(row=row_nb, column=0)
+
+            if param['widget'] == tk.Entry:
+                self._extra_input[code_name] = tk.Entry(self._popup_window, bg=BG_COLOR_2, justify=tk.CENTER, fg=FG_COLOR,
+                                                        insertbackground=FG_COLOR)
+                if self._additional_parameters[b_index][code_name] is not None:
+                    self._extra_input[code_name].insert(tk.END, str(self._additional_parameters[b_index][code_name]))
+            else:
+                continue
+            self._extra_input[code_name].grid(row=row_nb, column=1)
+            row_nb += 1
+            
+        # Validation Button
+        validation_button = tk.Button(self._popup_window, text="Validate", bg=BG_COLOR_2, fg=FG_COLOR,
+                                    command=lambda: self._validate_parameters(b_index))
+        validation_button.grid(row=row_nb, column=0, columnspan=2)
+    
+    def _validate_parameters(self, b_index: int):
         return
     
     def _switch_strategy(self, b_index: int):
