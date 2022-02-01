@@ -168,7 +168,6 @@ class StrategyEditor(tk.Frame):
         stop_loss = float(self.body_widgets['stop_loss'][b_index].get())
 
         if self.body_widgets['activation'][b_index].cget("text") == "OFF":
-
             for param in self._base_params:
                 code_name = param['code_name']
 
