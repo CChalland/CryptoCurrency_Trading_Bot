@@ -10,11 +10,11 @@ class StrategyEditor(tk.Frame):
     def __init__(self, root, binance: BinanceFuturesClient, bitmex: BitmexClient, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
+        self.body_widgets = dict()
         self._exchanges = {"Binance": binance, "Bitmex": bitmex}
         self._all_contracts = []
         self._all_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h"]
         self._headers = ["Strategy", "Contract", "Timeframe", "Balance %", "TP %", "SL %"]
-        self.body_widgets = dict()
         self._additional_parameters = dict()
         self._extra_input = dict()
 
@@ -136,7 +136,15 @@ class StrategyEditor(tk.Frame):
         validation_button.grid(row=row_nb, column=0, columnspan=2)
     
     def _validate_parameters(self, b_index: int):
-        return
+        strat_selected = self.body_widgets['strategy_type_var'][b_index].get()
+        for param in self._extra_params[strat_selected]:
+            code_name = param['code_name']
+            if self._extra_input[code_name].get() == "":
+                self._additional_parameters[b_index][code_name] = None
+            else:
+                self._additional_parameters[b_index][code_name] = param['data_type'](self._extra_input[code_name].get())
+
+        self._popup_window.destroy()
     
     def _switch_strategy(self, b_index: int):
         return
