@@ -9,6 +9,7 @@ import websocket
 import json
 import threading
 from models import *
+from strategies import TechnicalStrategy, BreakoutStrategy
 
 logger = logging.getLogger()
 
@@ -30,6 +31,7 @@ class BinanceFuturesClient:
 
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
+        self.strategies: typing.Dict[int, typing.Union[TechnicalStrategy, BreakoutStrategy]] = dict()
 
         t = threading.Thread(target=self._start_ws)
         t.start()
@@ -191,6 +193,9 @@ class BinanceFuturesClient:
                 else:
                     self.prices[symbol]['bid'] = float(data['b'])
                     self.prices[symbol]['ask'] = float(data['a'])
+            
+            if data['e'] == "aggTrade":
+                symbol = data['s']
 
     def subscribe_channel(self, contracts: typing.List[Contract], channel: str):
         data = dict()

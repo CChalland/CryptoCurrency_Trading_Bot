@@ -172,7 +172,6 @@ class StrategyEditor(tk.Frame):
         stop_loss = float(self.body_widgets['stop_loss'][b_index].get())
 
         if self.body_widgets['activation'][b_index].cget("text") == "OFF":
-            
             if strat_selected == "Technical":
                 new_strategy = TechnicalStrategy(contract, exchange, timeframe, balance_pct,
                                                 take_profit, stop_loss, self._additional_parameters[b_index])
@@ -181,6 +180,15 @@ class StrategyEditor(tk.Frame):
                                                 take_profit, stop_loss, self._additional_parameters[b_index])
             else:
                 return
+            
+            new_strategy = self._exchanges[exchange].get_historical_candles(contract, timeframe)
+            if len(new_strategy.candles) == 0:
+                self.root.logging_frame.add_log(f"No historical data retrieved for {contract.symbol}")
+                return
+            
+            if exchange == "Binance":
+                self._exchanges[exchange].subscribe_channel([contract], "aggTrade")
+            self._exchanges[exchange].strategies[b_index] = new_strategy
             
             for param in self._base_params:
                 code_name = param['code_name']
@@ -192,6 +200,8 @@ class StrategyEditor(tk.Frame):
             self.root.logging_frame.add_log(f"{strat_selected} strategy on {symbol} / {timeframe} started")
 
         else:
+            del self._exchanges[exchange].strategies[b_index]
+
             for param in self._base_params:
                 code_name = param['code_name']
 
