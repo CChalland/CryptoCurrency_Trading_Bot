@@ -8,30 +8,37 @@ from connectors.bitmex import BitmexClient
 
 from strategies import TechnicalStrategy, BreakoutStrategy
 
+
+if typing.TYPE_CHECKING:
+    from interface.root_component import Root
+
+
 class StrategyEditor(tk.Frame):
-    def __init__(self, root, binance: BinanceFuturesClient, bitmex: BitmexClient, *args, **kwargs):
+    def __init__(self, root: "Root", binance: BinanceFuturesClient, bitmex: BitmexClient, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
-        self.body_widgets = dict()
         self._exchanges = {"Binance": binance, "Bitmex": bitmex}
         self._all_contracts = []
         self._all_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h"]
-        self._headers = ["Strategy", "Contract", "Timeframe", "Balance %", "TP %", "SL %"]
-        self._additional_parameters = dict()
-        self._extra_input = dict()
-
         for exchange, client in self._exchanges.items():
             for symbol, contract in client.contracts.items():
                 self._all_contracts.append(symbol + "_" + exchange.capitalize())
 
         self._commands_frame = tk.Frame(self, bg=BG_COLOR)
         self._commands_frame.pack(side=tk.TOP)
+
         self._table_frame = tk.Frame(self, bg=BG_COLOR)
         self._table_frame.pack(side=tk.TOP)
+        
         self._add_button = tk.Button(self._commands_frame, text="Add strategy", font=GLOBAL_FONT,
                                     command=self._add_strategy_row, bg=BG_COLOR_2, fg=FG_COLOR)
         self._add_button.pack(side=tk.TOP)
-        
+
+        self.body_widgets = dict()
+
+        self._headers = ["Strategy", "Contract", "Timeframe", "Balance %", "TP %", "SL %"]
+        self._additional_parameters = dict()
+        self._extra_input = dict()
         self._base_params = [
             {"code_name": "strategy_type", "widget": tk.OptionMenu, "data_type": str,
                 "values": ["Technical", "Breakout"], "width": 10},
@@ -51,6 +58,7 @@ class StrategyEditor(tk.Frame):
         ]
         self._extra_params = {
             "Technical": [
+                {"code_name": "rsi_length", "name": "RSI Periods", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_fast", "name": "MACD Fast Length", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_slow", "name": "MACD Slow Length", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_signal", "name": "MACD Signal Length", "widget": tk.Entry, "data_type": int},
@@ -59,20 +67,21 @@ class StrategyEditor(tk.Frame):
                 {"code_name": "min_volume", "name": "Minimum Volume", "widget": tk.Entry, "data_type": float},
             ]
         }
-        
+
         for idx, h in enumerate(self._headers):
             header = tk.Label(self._table_frame, text=h, bg=BG_COLOR, fg=FG_COLOR, font=BOLD_FONT)
             header.grid(row=0, column=idx)
-        
+
         for h in self._base_params:
             self.body_widgets[h['code_name']] = dict()
             if h['code_name'] in ["strategy_type", "contract", "timeframe"]:
                 self.body_widgets[h['code_name'] + "_var"] = dict()
-        
+
         self._body_index = 1
-    
+
     def _add_strategy_row(self):
         b_index = self._body_index
+
         for col, base_param in enumerate(self._base_params):
             code_name = base_param['code_name']
             if base_param['widget'] == tk.OptionMenu:
@@ -98,12 +107,13 @@ class StrategyEditor(tk.Frame):
                 self._additional_parameters[b_index][param['code_name']] = None
 
         self._body_index += 1
-    
+
     def _delete_row(self, b_index: int):
         for element in self._base_params:
             self.body_widgets[element['code_name']][b_index].grid_forget()
+
             del self.body_widgets[element['code_name']][b_index]
-    
+
     def _show_popup(self, b_index: int):
         x = self.body_widgets["parameters"][b_index].winfo_rootx()
         y = self.body_widgets["parameters"][b_index].winfo_rooty()
@@ -131,12 +141,12 @@ class StrategyEditor(tk.Frame):
                 continue
             self._extra_input[code_name].grid(row=row_nb, column=1)
             row_nb += 1
-            
+
         # Validation Button
         validation_button = tk.Button(self._popup_window, text="Validate", bg=BG_COLOR_2, fg=FG_COLOR,
                                     command=lambda: self._validate_parameters(b_index))
         validation_button.grid(row=row_nb, column=0, columnspan=2)
-    
+
     def _validate_parameters(self, b_index: int):
         strat_selected = self.body_widgets['strategy_type_var'][b_index].get()
         for param in self._extra_params[strat_selected]:
@@ -147,7 +157,7 @@ class StrategyEditor(tk.Frame):
                 self._additional_parameters[b_index][code_name] = param['data_type'](self._extra_input[code_name].get())
 
         self._popup_window.destroy()
-    
+
     def _switch_strategy(self, b_index: int):
         for param in ["balance_pct", "take_profit", "stop_loss"]:
             if self.body_widgets[param][b_index].get() == "":
@@ -173,26 +183,26 @@ class StrategyEditor(tk.Frame):
 
         if self.body_widgets['activation'][b_index].cget("text") == "OFF":
             if strat_selected == "Technical":
-                new_strategy = TechnicalStrategy(contract, exchange, timeframe, balance_pct,
+                new_strategy = TechnicalStrategy(self._exchanges[exchange], contract, exchange, timeframe, balance_pct,
                                                 take_profit, stop_loss, self._additional_parameters[b_index])
             elif strat_selected == "Breakout":
-                new_strategy = BreakoutStrategy(contract, exchange, timeframe, balance_pct,
+                new_strategy = BreakoutStrategy(self._exchanges[exchange], contract, exchange, timeframe, balance_pct,
                                                 take_profit, stop_loss, self._additional_parameters[b_index])
             else:
                 return
+
+            new_strategy.candles = self._exchanges[exchange].get_historical_candles(contract, timeframe)
             
-            new_strategy = self._exchanges[exchange].get_historical_candles(contract, timeframe)
             if len(new_strategy.candles) == 0:
                 self.root.logging_frame.add_log(f"No historical data retrieved for {contract.symbol}")
                 return
-            
             if exchange == "Binance":
                 self._exchanges[exchange].subscribe_channel([contract], "aggTrade")
-            self._exchanges[exchange].strategies[b_index] = new_strategy
             
+            self._exchanges[exchange].strategies[b_index] = new_strategy
+
             for param in self._base_params:
                 code_name = param['code_name']
-
                 if code_name != "activation" and "_var" not in code_name:
                     self.body_widgets[code_name][b_index].config(state=tk.DISABLED)
 

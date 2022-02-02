@@ -15,8 +15,6 @@ logger = logging.getLogger()
 
 class BinanceFuturesClient:
     def __init__(self, public_key: str, secret_key: str, testnet: bool):
-        self.logs = []
-        self.prices = dict()
         self._ws_id = 1
         self._ws = None
         self._public_key = public_key
@@ -28,15 +26,17 @@ class BinanceFuturesClient:
         else:
             self._base_url = "https://fapi.binance.com"
             self._wss_url = "wss://fstream.binance.com/ws"
-
+        
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
+        self.prices = dict()
         self.strategies: typing.Dict[int, typing.Union[TechnicalStrategy, BreakoutStrategy]] = dict()
+        self.logs = []
 
         t = threading.Thread(target=self._start_ws)
         t.start()
         logger.info("Binance Futures Client successfully initialized")
-    
+
     def _add_log(self, msg: str):
         logger.info("%s", msg)
         self.logs.append({"log": msg, "displayed": False})
@@ -64,7 +64,7 @@ class BinanceFuturesClient:
                 logger.error("Connection error while making %s request to %s: %s", method, endpoint, e)
                 return None
         else:
-            raise ValueError
+            raise ValueError()
 
         if response.status_code == 200:
             return response.json()
@@ -79,7 +79,8 @@ class BinanceFuturesClient:
 
         if exchange_info is not None:
             for contract_data in exchange_info['symbols']:
-                contracts[contract_data['symbol']] = Contract(contract_data, "binance")
+                if contract_data['marginAsset'] != "BUSD":
+                    contracts[contract_data['symbol']] = Contract(contract_data, "binance")
         return contracts
 
     def get_historical_candles(self, contract: Contract, interval: str) -> typing.List[Candle]:
@@ -120,10 +121,10 @@ class BinanceFuturesClient:
                 balances[a['asset']] = Balance(a, "binance")
         return balances
 
-    def place_order(self, contract: Contract, side: str, quantity: float, order_type: str, price=None, tif=None) -> OrderStatus:
+    def place_order(self, contract: Contract, order_type: str, quantity: float, side: str, price=None, tif=None) -> OrderStatus:
         data = dict()
         data['symbol'] = contract.symbol
-        data['side'] = side
+        data['side'] = side.upper()
         data['quantity'] = round(round(quantity / contract.lot_size) * contract.lot_size, 8)
         data['type'] = order_type
         if price is not None:
@@ -193,10 +194,23 @@ class BinanceFuturesClient:
                 else:
                     self.prices[symbol]['bid'] = float(data['b'])
                     self.prices[symbol]['ask'] = float(data['a'])
-            
+
+                # PNL Calculation
+                try:
+                    for b_index, strat in self.strategies.items():
+                        if strat.contract.symbol == symbol:
+                            for trade in strat.trades:
+                                if trade.status == "open" and trade.entry_price is not None:
+                                    if trade.side == "long":
+                                        trade.pnl = (self.prices[symbol]['bid'] - trade.entry_price) * trade.quantity
+                                    elif trade.side == "short":
+                                        trade.pnl = (trade.entry_price - self.prices[symbol]['ask']) * trade.quantity
+                except RuntimeError as e:
+                    logger.error("Error while looping through the Binance strategies: %s", e)
+
             if data['e'] == "aggTrade":
                 symbol = data['s']
-                
+
                 for key, strat in self.strategies.items():
                     if strat.contract.symbol == symbol:
                         res = strat.parse_trades(float(data['p']), float(data['q']), data['T'])
@@ -217,3 +231,18 @@ class BinanceFuturesClient:
             logger.error("Websocket error while subscribing to %s %s updates: %s", len(contracts), channel, e)
 
         self._ws_id += 1
+
+    def get_trade_size(self, contract: Contract, price: float, balance_pct: float):
+        balance = self.get_balances()
+        if balance is not None:
+            if 'USDT' in balance:
+                balance = balance['USDT'].wallet_balance
+            else:
+                return None
+        else:
+            return None
+
+        trade_size = (balance * balance_pct / 100) / price
+        trade_size = round(round(trade_size / contract.lot_size) * contract.lot_size, 8)
+        logger.info("Binance Futures current USDT balance = %s, trade size = %s", balance, trade_size)
+        return trade_size

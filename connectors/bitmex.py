@@ -16,11 +16,9 @@ logger = logging.getLogger()
 
 class BitmexClient:
     def __init__(self, public_key: str, secret_key: str, testnet: bool):
-        self.logs = []
-        self.prices = dict()
-        self._ws = None
         self._public_key = public_key
         self._secret_key = secret_key
+        self._ws = None
         if testnet:
             self._base_url = "https://testnet.bitmex.com"
             self._wss_url = "wss://testnet.bitmex.com/realtime"
@@ -30,12 +28,15 @@ class BitmexClient:
 
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
+
+        self.prices = dict()
         self.strategies: typing.Dict[int, typing.Union[TechnicalStrategy, BreakoutStrategy]] = dict()
+        self.logs = []
 
         t = threading.Thread(target=self._start_ws)
         t.start()
         logger.info("Bitmex Client successfully initialized")
-    
+
     def _add_log(self, msg: str):
         logger.info("%s", msg)
         self.logs.append({"log": msg, "displayed": False})
@@ -69,7 +70,7 @@ class BitmexClient:
                 logger.error("Connection error while making %s request to %s: %s", method, endpoint, e)
                 return None
         else:
-            raise ValueError
+            raise ValueError()
 
         if response.status_code == 200:
             return response.json()
@@ -107,7 +108,7 @@ class BitmexClient:
         data['count'] = 500
         data['reverse'] = True
         raw_candles = self._make_request("GET", "/api/v1/trade/bucketed", data)
-
+        
         if raw_candles is not None:
             for c in reversed(raw_candles):
                 candles.append(Candle(c, timeframe, "bitmex"))
@@ -138,7 +139,7 @@ class BitmexClient:
             order_status = OrderStatus(order_status[0], "bitmex")
         return order_status
 
-    def get_order_status(self, order_id: str, contract: Contract) -> OrderStatus:
+    def get_order_status(self, contract: Contract, order_id: str) -> OrderStatus:
         data = dict()
         data['symbol'] = contract.symbol
         data['reverse'] = True
@@ -151,7 +152,7 @@ class BitmexClient:
 
     def _start_ws(self):
         self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
-                                            on_error=self._on_error, on_message=self._on_message)
+                                        on_error=self._on_error, on_message=self._on_message)
         while True:
             try:
                 self._ws.run_forever()
@@ -174,6 +175,7 @@ class BitmexClient:
         data = json.loads(msg)
         if "table" in data:
             if data['table'] == "instrument":
+                
                 for d in data['data']:
                     symbol = d['symbol']
 
@@ -184,11 +186,37 @@ class BitmexClient:
                     if 'askPrice' in d:
                         self.prices[symbol]['ask'] = d['askPrice']
 
+                    # PNL Calculation
+                    try:
+                        for b_index, strat in self.strategies.items():
+                            if strat.contract.symbol == symbol:
+                                for trade in strat.trades:
+                                    if trade.status == "open" and trade.entry_price is not None:
+
+                                        if trade.side == "long":
+                                            price = self.prices[symbol]['bid']
+                                        else:
+                                            price = self.prices[symbol]['ask']
+                                        multiplier = trade.contract.multiplier
+
+                                        if trade.contract.inverse:
+                                            if trade.side == "long":
+                                                trade.pnl = (1 / trade.entry_price - 1 / price) * multiplier * trade.quantity
+                                            elif trade.side == "short":
+                                                trade.pnl = (1 / price - 1 / trade.entry_price) * multiplier * trade.quantity
+                                        else:
+                                            if trade.side == "long":
+                                                trade.pnl = (price - trade.entry_price) * multiplier * trade.quantity
+                                            elif trade.side == "short":
+                                                trade.pnl = (trade.entry_price - price) * multiplier * trade.quantity
+                    except RuntimeError as e:
+                        logger.error("Error while looping through the Bitmex strategies: %s", e)
+
             if data['table'] == "trade":
                 for d in data['data']:
                     symbol = d['symbol']
                     ts = int(dateutil.parser.isoparse(d['timestamp']).timestamp() * 1000)
-                    
+
                     for key, strat in self.strategies.items():
                         if strat.contract.symbol == symbol:
                             res = strat.parse_trades(float(d['price']), float(d['size']), ts)
@@ -203,4 +231,25 @@ class BitmexClient:
         try:
             self._ws.send(json.dumps(data))
         except Exception as e:
-            logger.error("Websocket error while subscribing to %s updates: %s", topic, e)
+            logger.error("Websocket error while subscribing to %s: %s", topic, e)
+
+    def get_trade_size(self, contract: Contract, price: float, balance_pct: float):
+        balance = self.get_balances()
+        if balance is not None:
+            if 'XBt' in balance:
+                balance = balance['XBt'].wallet_balance
+            else:
+                return None
+        else:
+            return None
+
+        xbt_size = balance * balance_pct / 100
+        if contract.inverse:
+            contracts_number = xbt_size / (contract.multiplier / price)
+        elif contract.quanto:
+            contracts_number = xbt_size / (contract.multiplier * price)
+        else:
+            contracts_number = xbt_size / (contract.multiplier * price)
+
+        logger.info("Bitmex current XBT balance = %s, contracts number = %s", balance, contracts_number)
+        return int(contracts_number)
