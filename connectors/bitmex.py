@@ -188,6 +188,11 @@ class BitmexClient:
                 for d in data['data']:
                     symbol = d['symbol']
                     ts = int(dateutil.parser.isoparse(d['timestamp']).timestamp() * 1000)
+                    
+                    for key, strat in self.strategies.items():
+                        if strat.contract.symbol == symbol:
+                            res = strat.parse_trades(float(d['price']), float(d['size']), ts)
+                            strat.check_trade(res)
 
     def subscribe_channel(self, topic: str):
         data = dict()
