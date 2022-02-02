@@ -216,8 +216,6 @@ class TechnicalStrategy(Strategy):
     def _check_signal(self):
         macd_line, macd_signal = self._macd()
         rsi = self._rsi()
-        
-        print(rsi, macd_line, macd_signal)
 
         if rsi < 30 and macd_line > macd_signal:
             return 1
