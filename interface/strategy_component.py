@@ -199,6 +199,7 @@ class StrategyEditor(tk.Frame):
             if exchange == "Binance":
                 self._exchanges[exchange].subscribe_channel([contract], "aggTrade")
             
+            new_strategy._check_signal()
             self._exchanges[exchange].strategies[b_index] = new_strategy
 
             for param in self._base_params:
