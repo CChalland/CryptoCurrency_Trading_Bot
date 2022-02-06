@@ -8,6 +8,7 @@ from connectors.binance import BinanceFuturesClient
 from connectors.bitmex import BitmexClient
 
 from strategies import TechnicalStrategy, BreakoutStrategy
+from utils import *
 
 
 if typing.TYPE_CHECKING:
@@ -18,6 +19,8 @@ class StrategyEditor(tk.Frame):
     def __init__(self, root: "Root", binance: BinanceFuturesClient, bitmex: BitmexClient, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
+        self._valid_integer = self.register(check_integer_format)
+        self._valid_float = self.register(check_float_format)
         self._exchanges = {"Binance": binance, "Bitmex": bitmex}
         self._all_contracts = []
         self._all_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h"]
@@ -95,6 +98,11 @@ class StrategyEditor(tk.Frame):
             elif base_param['widget'] == tk.Entry:
                 self.body_widgets[code_name][b_index] = tk.Entry(self._table_frame, justify=tk.CENTER,
                                                                 highlightthickness=False, width=base_param['width'])
+                if base_param['data_type'] == int:
+                    self.body_widgets[code_name][b_index].config(validate='key', validatecommand=(self._valid_integer, '%P'))
+                elif base_param['data_type'] == float:
+                    self.body_widgets[code_name][b_index].config(validate='key', validatecommand=(self._valid_float, '%P'))
+                
             elif base_param['widget'] == tk.Button:
                 self.body_widgets[code_name][b_index] = tkmac.Button(self._table_frame, text=base_param['text'],
                                         bg=base_param['bg'], fg=FG_COLOR, borderless=True,
@@ -137,6 +145,11 @@ class StrategyEditor(tk.Frame):
             if param['widget'] == tk.Entry:
                 self._extra_input[code_name] = tk.Entry(self._popup_window, bg=BG_COLOR_2, justify=tk.CENTER, fg=FG_COLOR,
                                                         insertbackground=FG_COLOR, highlightthickness=False)
+                if param['data_type'] == int:
+                    self._extra_input[code_name].config(validate='key', validatecommand=(self._valid_integer, '%P'))
+                elif param['data_type'] == float:
+                    self._extra_input[code_name].config(validate='key', validatecommand=(self._valid_float, '%P'))
+                
                 if self._additional_parameters[b_index][code_name] is not None:
                     self._extra_input[code_name].insert(tk.END, str(self._additional_parameters[b_index][code_name]))
             else:
