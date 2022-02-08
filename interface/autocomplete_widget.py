@@ -61,7 +61,6 @@ class Autocomplete(tk.Entry):
         :param event:
         :return:
         """
-
         if self._lb_open:
             self._var.set(self._lb.get(tk.ACTIVE))
             self._lb.destroy()
