@@ -16,7 +16,6 @@ logger = logging.getLogger()
 class BinanceFuturesClient:
     def __init__(self, public_key: str, secret_key: str, testnet: bool):
         self._ws_id = 1
-        self._ws = None
         self._public_key = public_key
         self._secret_key = secret_key
         self._headers = {'X-MBX-APIKEY': self._public_key}
@@ -27,6 +26,8 @@ class BinanceFuturesClient:
             self._base_url = "https://fapi.binance.com"
             self._wss_url = "wss://fstream.binance.com/ws"
         
+        self.ws: websocket.WebSocketApp
+        self.reconnect = True
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
         self.prices = dict()
@@ -164,11 +165,14 @@ class BinanceFuturesClient:
         return order_status
 
     def _start_ws(self):
-        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
+        self.ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
                                             on_error=self._on_error, on_message=self._on_message)
         while True:
             try:
-                self._ws.run_forever()
+                if self.reconnect:
+                    self.ws.run_forever()
+                else:
+                    break
             except Exception as e:
                 logger.error("Binance error in run_forever() method: %s", e)
             time.sleep(2)
@@ -177,7 +181,7 @@ class BinanceFuturesClient:
         logger.info("Binance connection opened")
         self.subscribe_channel(list(self.contracts.values()), "bookTicker")
 
-    def _on_close(self, ws):
+    def _on_close(self, ws, close_status_code, close_msg):
         logger.warning("Binance Websocket connection closed")
 
     def _on_error(self, ws, msg: str):
@@ -226,7 +230,7 @@ class BinanceFuturesClient:
         data['id'] = self._ws_id
 
         try:
-            self._ws.send(json.dumps(data))
+            self.ws.send(json.dumps(data))
         except Exception as e:
             logger.error("Websocket error while subscribing to %s %s updates: %s", len(contracts), channel, e)
 

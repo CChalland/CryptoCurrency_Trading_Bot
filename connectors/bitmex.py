@@ -18,7 +18,6 @@ class BitmexClient:
     def __init__(self, public_key: str, secret_key: str, testnet: bool):
         self._public_key = public_key
         self._secret_key = secret_key
-        self._ws = None
         if testnet:
             self._base_url = "https://testnet.bitmex.com"
             self._wss_url = "wss://testnet.bitmex.com/realtime"
@@ -26,6 +25,8 @@ class BitmexClient:
             self._base_url = "https://www.bitmex.com"
             self._wss_url = "wss://www.bitmex.com/realtime"
 
+        self.ws: websocket.WebSocketApp
+        self.reconnect = True
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
 
@@ -151,11 +152,14 @@ class BitmexClient:
                     return OrderStatus(order, "bitmex")
 
     def _start_ws(self):
-        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
+        self.ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
                                         on_error=self._on_error, on_message=self._on_message)
         while True:
             try:
-                self._ws.run_forever()
+                if self.reconnect:
+                    self.ws.run_forever()
+                else:
+                    break
             except Exception as e:
                 logger.error("Bitmex error in run_forever() method: %s", e)
             time.sleep(2)
@@ -165,7 +169,7 @@ class BitmexClient:
         self.subscribe_channel("instrument")
         self.subscribe_channel("trade")
 
-    def _on_close(self, ws):
+    def _on_close(self, ws, close_status_code, close_msg):
         logger.warning("Bitmex Websocket connection closed")
 
     def _on_error(self, ws, msg: str):
@@ -229,7 +233,7 @@ class BitmexClient:
         data['args'].append(topic)
 
         try:
-            self._ws.send(json.dumps(data))
+            self.ws.send(json.dumps(data))
         except Exception as e:
             logger.error("Websocket error while subscribing to %s: %s", topic, e)
 
