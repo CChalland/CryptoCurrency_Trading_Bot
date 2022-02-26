@@ -5,3 +5,4 @@
 .env
 /bot-env
 info.log
+database.db

@@ -25,7 +25,7 @@ class WorkspaceData:
         self.conn.commit()
     
     def get(self, table: str):
-        self.cursor.execute(f"SLECT * FROM {table}")
+        self.cursor.execute(f"SELECT * FROM {table}")
         data = self.cursor.fetchall()
         
         return data
