@@ -2,6 +2,7 @@ import logging
 import requests
 import time
 import typing
+import collections
 from urllib.parse import urlencode
 import hmac
 import hashlib
@@ -16,6 +17,12 @@ logger = logging.getLogger()
 
 class BitmexClient:
     def __init__(self, public_key: str, secret_key: str, testnet: bool):
+        """
+        See comments in the Binance connector.
+        :param public_key:
+        :param secret_key:
+        :param testnet:
+        """
         self._public_key = public_key
         self._secret_key = secret_key
         if testnet:
@@ -24,6 +31,9 @@ class BitmexClient:
         else:
             self._base_url = "https://www.bitmex.com"
             self._wss_url = "wss://www.bitmex.com/realtime"
+
+        self.futures = True
+        self.platform = "bitmex"  # Just to have more homogeneous connectors, even if self.platform is not used
 
         self.ws: websocket.WebSocketApp
         self.reconnect = True
@@ -87,7 +97,7 @@ class BitmexClient:
         if instruments is not None:
             for s in instruments:
                 contracts[s['symbol']] = Contract(s, "bitmex")
-        return contracts
+        return collections.OrderedDict(sorted(contracts.items()))  # Sort keys of the dictionary alphabetically
 
     def get_balances(self) -> typing.Dict[str, Balance]:
         balances = dict()
@@ -112,6 +122,8 @@ class BitmexClient:
         
         if raw_candles is not None:
             for c in reversed(raw_candles):
+                if c['open'] is None or c['close'] is None:  # Some candles returned by Bitmex miss data
+                    continue
                 candles.append(Candle(c, timeframe, "bitmex"))
         return candles
 
@@ -238,6 +250,14 @@ class BitmexClient:
             logger.error("Websocket error while subscribing to %s: %s", topic, e)
 
     def get_trade_size(self, contract: Contract, price: float, balance_pct: float):
+        """
+        Compute the trade size for the strategy module based on the percentage of the balance to use
+        that was defined in the strategy component and the type of contract.
+        :param contract:
+        :param price: Used to convert the amount to invest into an amount to buy/sell
+        :param balance_pct:
+        :return:
+        """
         balance = self.get_balances()
         if balance is not None:
             if 'XBt' in balance:
@@ -248,6 +268,8 @@ class BitmexClient:
             return None
 
         xbt_size = balance * balance_pct / 100
+        # The trade size calculation depends on the type of contract
+        # https://www.bitmex.com/app/perpetualContractsGuide
         if contract.inverse:
             contracts_number = xbt_size / (contract.multiplier / price)
         elif contract.quanto:
