@@ -7,8 +7,8 @@ from connectors.bitmex import BitmexClient
 from interface.root_component import Root
 
 # testnet.binancefuture.com API keys
-TEST_BINANCE_KEY = config('TEST_BINANCE_KEY')
-TEST_BINANCE_SECRET = config('TEST_BINANCE_SECRET')
+TEST_BINANCE_KEY = config('TEST_BINANCE_FUTURE_KEY')
+TEST_BINANCE_SECRET = config('TEST_BINANCE_FUTURE_SECRET')
 # testnet.bitmex.com API keys
 TEST_BITMAX_ID = config('TEST_BITMAX_ID')
 TEST_BITMAX_SECRET = config('TEST_BITMAX_SECRET')
